@@ -21,6 +21,10 @@ RUN mkdir -p /var/log/supervisor
 
 # Deploy startup script
 ADD src/start.sh /usr/local/bin/start
+ADD src/configureCassandra.sh /usr/local/bin/configureCassandra
+
+RUN chmod 755 /usr/local/bin/start
+RUN chmod 755 /usr/local/bin/configureCassandra
 
 # Necessary since cassandra is trying to override the system limitations
 # See https://groups.google.com/forum/#!msg/docker-dev/8TM_jLGpRKU/dewIQhcs7oAJ
@@ -29,5 +33,4 @@ RUN rm -f /etc/security/limits.d/cassandra.conf
 EXPOSE 7199 7000 7001 9160 9042
 EXPOSE 22 8012 61621
 USER root
-#CMD start
-CMD ["/bin/bash"]
+CMD start
