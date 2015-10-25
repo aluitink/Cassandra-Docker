@@ -44,34 +44,38 @@ fi
 echo Starting Cassandra on $IP...
 /usr/bin/supervisord
 
-#wait for cassandra to startup
-sleep 10s
-
-IFS=$'\n'
 passwordFile=$CONFIG/credentials.txt
-configFile=$CONFIG/userConfig.cql
 
-randomPassword=`cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32`
+if [ -f $passwordFile ]; then
+	#wait for cassandra to startup
+	sleep 10s
 
-echo "ALTER USER cassandra WITH PASSWORD '$randomPassword' SUPERUSER;" > $CONFIG/alterDefaultUser.cql
-echo "cassandra:$randomPassword" > /root/cassandraPasswords.txt
+	configFile=$CONFIG/userConfig.cql
 
-randomPasswordAdmin=`cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32`
-echo "admin:$randomPasswordAdmin" >> /root/cassandraPasswords.txt
+	IFS=$'\n'
+	randomPassword=`cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32`
 
-echo "CREATE USER IF NOT EXISTS 'admin' WITH PASSWORD '$randomPasswordAdmin' SUPERUSER;" > $configFile
+	echo "ALTER USER cassandra WITH PASSWORD '$randomPassword' SUPERUSER;" > $CONFIG/alterDefaultUser.cql
+	echo "cassandra:$randomPassword" > /root/cassandraPasswords.txt
 
-while read line
-do
-        array+=("$line")
-done < $passwordFile
+	randomPasswordAdmin=`cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32`
+	echo "admin:$randomPasswordAdmin" >> /root/cassandraPasswords.txt
 
-IFS=$':'
-for ((i=0; i < ${#array[*]}; i++))
-do
-        read -r user pass <<< "${array[i]}"
-        echo "CREATE USER IF NOT EXISTS '$user' WITH PASSWORD '$pass' SUPERUSER;" >> $configFile
-done
+	echo "CREATE USER IF NOT EXISTS 'admin' WITH PASSWORD '$randomPasswordAdmin' SUPERUSER;" > $configFile
 
-cqlsh -u cassandra -p cassandra -f $configFile
-cqlsh -u admin -p $randomPasswordAdmin -f $CONFIG/alterDefaultUser.cql
+	while read line
+	do
+			array+=("$line")
+	done < $passwordFile
+
+	IFS=$':'
+	for ((i=0; i < ${#array[*]}; i++))
+	do
+			read -r user pass <<< "${array[i]}"
+			echo "CREATE USER IF NOT EXISTS '$user' WITH PASSWORD '$pass' SUPERUSER;" >> $configFile
+	done
+
+	cqlsh -u cassandra -p cassandra -f $configFile
+	cqlsh -u admin -p $randomPasswordAdmin -f $CONFIG/alterDefaultUser.cql
+
+fi
