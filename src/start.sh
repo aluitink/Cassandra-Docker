@@ -18,7 +18,8 @@ echo Configuring Cassandra to listen at $IP with seeds $SEEDS
 
 # Setup Cassandra
 DEFAULT=${DEFAULT:-/etc/cassandra/default.conf}
-CONFIG=/etc/cassandra/conf
+CASSANDRADIR=/etc/cassandra
+CONFIG=$CASSANDRADIR/conf
 
 rm -rf $CONFIG && cp -r $DEFAULT $CONFIG
 sed -i -e "s/^authenticator.*/authenticator: PasswordAuthenticator/" 			$CONFIG/cassandra.yaml
@@ -44,18 +45,18 @@ fi
 echo Starting Cassandra on $IP...
 /usr/bin/supervisord
 
-passwordFile=$CONFIG/credentials.txt
+passwordFile=$CASSANDRADIR/credentials.txt
 
 if [ -f $passwordFile ]; then
 	#wait for cassandra to startup
 	sleep 10s
 
-	configFile=$CONFIG/userConfig.cql
+	configFile=$CASSANDRADIR/userConfig.cql
 
 	IFS=$'\n'
 	randomPassword=`cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32`
 
-	echo "ALTER USER cassandra WITH PASSWORD '$randomPassword' SUPERUSER;" > $CONFIG/alterDefaultUser.cql
+	echo "ALTER USER cassandra WITH PASSWORD '$randomPassword' SUPERUSER;" > $CASSANDRADIR/alterDefaultUser.cql
 	echo "cassandra:$randomPassword" > /root/cassandraPasswords.txt
 
 	randomPasswordAdmin=`cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32`
@@ -76,6 +77,6 @@ if [ -f $passwordFile ]; then
 	done
 
 	cqlsh -u cassandra -p cassandra -f $configFile
-	cqlsh -u admin -p $randomPasswordAdmin -f $CONFIG/alterDefaultUser.cql
+	cqlsh -u admin -p $randomPasswordAdmin -f $CASSANDRADIR/alterDefaultUser.cql
 
 fi
