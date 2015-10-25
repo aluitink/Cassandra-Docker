@@ -49,7 +49,7 @@ passwordFile=$CASSANDRADIR/credentials.txt
 
 if [ -f $passwordFile ]; then
 	#wait for cassandra to startup
-	sleep 10s
+	sleep 20s
 
 	configFile=$CASSANDRADIR/userConfig.cql
 	adminPasswordFile=$CASSANDRADIR/cassandraPasswords.txt
