@@ -21,14 +21,15 @@ DEFAULT=${DEFAULT:-/etc/cassandra/default.conf}
 CONFIG=/etc/cassandra/conf
 
 rm -rf $CONFIG && cp -r $DEFAULT $CONFIG
-sed -i -e "s/^listen_address.*/listen_address: $IP/"            $CONFIG/cassandra.yaml
-sed -i -e "s/^rpc_address.*/rpc_address: 0.0.0.0/"              $CONFIG/cassandra.yaml
-sed -i -e "s/# broadcast_address.*/broadcast_address: $IP/"              $CONFIG/cassandra.yaml
-sed -i -e "s/# broadcast_rpc_address.*/broadcast_rpc_address: $IP/"              $CONFIG/cassandra.yaml
+sed -i -e "s/^authenticator.*/authenticator: PasswordAuthenticator/" 			$CONFIG/cassandra.yaml
+sed -i -e "s/^listen_address.*/listen_address: $IP/"            				$CONFIG/cassandra.yaml
+sed -i -e "s/^rpc_address.*/rpc_address: 0.0.0.0/"              				$CONFIG/cassandra.yaml
+sed -i -e "s/# broadcast_address.*/broadcast_address: $IP/"             		$CONFIG/cassandra.yaml
+sed -i -e "s/# broadcast_rpc_address.*/broadcast_rpc_address: $IP/"     		$CONFIG/cassandra.yaml
 sed -i -e "s/^commitlog_segment_size_in_mb.*/commitlog_segment_size_in_mb: 64/"              $CONFIG/cassandra.yaml
-sed -i -e "s/- seeds: \"127.0.0.1\"/- seeds: \"$SEEDS\"/"       $CONFIG/cassandra.yaml
+sed -i -e "s/- seeds: \"127.0.0.1\"/- seeds: \"$SEEDS\"/"       				$CONFIG/cassandra.yaml
 sed -i -e "s/# JVM_OPTS=\"\$JVM_OPTS -Djava.rmi.server.hostname=<public name>\"/JVM_OPTS=\"\$JVM_OPTS -Djava.rmi.server.hostname=$IP\"/" $CONFIG/cassandra-env.sh
-sed -i -e "s/LOCAL_JMX=yes/LOCAL_JMX=no/" $CONFIG/cassandra-env.sh
+sed -i -e "s/LOCAL_JMX=yes/LOCAL_JMX=no/" 										$CONFIG/cassandra-env.sh
 sed -i -e "s/JVM_OPTS=\"\$JVM_OPTS -Dcom.sun.management.jmxremote.authenticate=true\"/JVM_OPTS=\"\$JVM_OPTS -Dcom.sun.management.jmxremote.authenticate=false\"/" $CONFIG/cassandra-env.sh
 
 if [[ $SNITCH ]]; then
@@ -42,3 +43,35 @@ fi
 # Start process
 echo Starting Cassandra on $IP...
 /usr/bin/supervisord
+
+#wait for cassandra to startup
+sleep 10s
+
+IFS=$'\n'
+passwordFile=$CONFIG/credentials.txt
+configFile=$CONFIG/userConfig.cql
+
+randomPassword=`cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32`
+
+echo "ALTER USER cassandra WITH PASSWORD '$randomPassword' SUPERUSER;" > $CONFIG/alterDefaultUser.cql
+echo "cassandra:$randomPassword" > /root/cassandraPasswords.txt
+
+randomPasswordAdmin=`cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 32`
+echo "admin:$randomPasswordAdmin" >> /root/cassandraPasswords.txt
+
+echo "CREATE USER IF NOT EXISTS 'admin' WITH PASSWORD '$randomPasswordAdmin' SUPERUSER;" > $configFile
+
+while read line
+do
+        array+=("$line")
+done < $passwordFile
+
+IFS=$':'
+for ((i=0; i < ${#array[*]}; i++))
+do
+        read -r user pass <<< "${array[i]}"
+        echo "CREATE USER IF NOT EXISTS '$user' WITH PASSWORD '$pass' SUPERUSER;" >> $configFile
+done
+
+cqlsh -u cassandra -p cassandra -f $configFile
+cqlsh -u admin -p $randomPasswordAdmin -f $CONFIG/alterDefaultUser.cql
