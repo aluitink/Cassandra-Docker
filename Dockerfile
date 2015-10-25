@@ -29,4 +29,5 @@ RUN rm -f /etc/security/limits.d/cassandra.conf
 EXPOSE 7199 7000 7001 9160 9042
 EXPOSE 22 8012 61621
 USER root
-CMD start
+#CMD start
+CMD ["/bin/bash"]
